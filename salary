@@ -1,0 +1,139 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.linear_model import LinearRegression
+
+# Load the dataset
+data = pd.read_csv("C:\\Users\\ASUS\\Downloads\\ml roj\\salary_prediction_data.csv")
+
+# Handle missing values
+data.fillna(method='ffill', inplace=True)  # Forward fill missing values
+
+# Encode categorical variables
+education_encoded = data['Education'].astype('category').cat.codes
+location_encoded = data['Location'].astype('category').cat.codes
+job_title_encoded = data['Job_Title'].astype('category').cat.codes
+gender_encoded = data['Gender'].astype('category').cat.codes
+
+# Combine encoded features into a single array
+X_encoded = np.column_stack((education_encoded, data['Experience'], location_encoded, job_title_encoded, data['Age'], gender_encoded))
+
+# Define the target variable
+y = data['Salary']
+
+# Create and fit the model
+model = LinearRegression()
+model.fit(X_encoded, y)
+
+# Custom color palette
+custom_palette = ['#1f77b4', 'black']
+
+# Sidebar styling
+st.markdown(
+    """
+    <style>
+    .sidebar .sidebar-content {
+        background-color: #1f77b4;
+        color: #ffffff;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Main content styling
+st.markdown(
+    """
+    <style>
+    .main {
+        background-color: #ffffff;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Streamlit app
+st.title("Pay Predictor")
+st.markdown("---")
+
+# Sidebar navigation
+page = st.sidebar.radio("Navigation", ["Home", "Prediction", "Visualization"])
+
+if page == "Home":
+    st.markdown(
+        """
+        ## Welcome to Pay Predictor - Salary Prediction App
+        
+        This app helps you predict salary based on education, experience, location, job title, age, and gender.
+        
+        Use the navigation on the left to explore.
+        """
+    )
+
+elif page == "Prediction":
+    st.markdown("## Salary Prediction")
+    st.write("Fill in the details to predict salary.")
+    st.markdown("---")
+
+    # Input fields for user to enter data
+    education = st.selectbox("Education", data['Education'].unique())
+    experience = st.slider("Experience (years)", min_value=int(data['Experience'].min()), max_value=int(data['Experience'].max()))
+    location = st.selectbox("Location", data['Location'].unique())
+    job_title = st.selectbox("Job Title", data['Job_Title'].unique())
+    age = st.slider("Age", min_value=int(data['Age'].min()), max_value=int(data['Age'].max()))
+    gender = st.selectbox("Gender", data['Gender'].unique())
+
+    st.markdown("---")
+
+    # Predict button
+    if st.button("Predict Salary"):
+        # Encode user input
+        education_encoded = data['Education'].astype('category').cat.codes[data['Education'].unique().tolist().index(education)]
+        location_encoded = data['Location'].astype('category').cat.codes[data['Location'].unique().tolist().index(location)]
+        job_title_encoded = data['Job_Title'].astype('category').cat.codes[data['Job_Title'].unique().tolist().index(job_title)]
+        gender_encoded = data['Gender'].astype('category').cat.codes[data['Gender'].unique().tolist().index(gender)]
+
+        # Make prediction
+        user_input_encoded = np.array([[education_encoded, experience, location_encoded, job_title_encoded, age, gender_encoded]])
+        predicted_salary = model.predict(user_input_encoded)
+
+        # Display predicted salary
+        st.success(f"Predicted Salary: Rs {predicted_salary[0]:,.2f}")
+
+elif page == "Visualization":
+    st.markdown("## Visualizations")
+    st.write("Select a visualization to explore.")
+    st.markdown("---")
+
+    # Visualization options
+    visualization_option = st.radio("", ["Bar Chart", "Pie Chart", "Scatter Plot"])
+
+    if visualization_option == "Bar Chart":
+        st.markdown("### Bar Chart")
+        # Bar chart of Education Level counts
+        education_counts = data['Education'].value_counts()
+        st.bar_chart(education_counts, use_container_width=True)
+
+    elif visualization_option == "Pie Chart":
+        st.markdown("### Pie Chart")
+        # Pie chart of Gender counts
+        gender_counts = data['Gender'].value_counts()
+        labels = gender_counts.index
+        values = gender_counts.values
+        fig, ax = plt.subplots()
+        ax.pie(values, labels=labels, autopct='%1.1f%%', colors=custom_palette)
+        plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+        st.pyplot(fig)
+
+    elif visualization_option == "Scatter Plot":
+        st.markdown("### Scatter Plot")
+        # Scatter plot of Salary vs Age
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.scatterplot(x='Age', y='Salary', data=data, color=custom_palette[0], ax=ax)
+        ax.set_xlabel("Age", fontsize=14)
+        ax.set_ylabel("Salary", fontsize=14)
+        ax.set_title("Salary vs Age", fontsize=16)
+        st.pyplot(fig)
